@@ -29,15 +29,10 @@ jobs:
     needs: test-and-publish
     runs-on: self-hosted
     steps:
-      - name: Log in to Docker Hub
-        shell: cmd
-        run: |
-          docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
-
       - name: Deploy Docker Container
-        shell: cmd
+        shell: powershell
         run: |
           docker pull ${{ secrets.DOCKERHUB_USERNAME }}/hw3:latest
-          docker stop my-api
-          docker rm my-api
+          docker stop my-api -ErrorAction SilentlyContinue
+          docker rm my-api -ErrorAction SilentlyContinue
           docker run -d -p 8000:8000 --name my-api ${{ secrets.DOCKERHUB_USERNAME }}/hw3:latest
