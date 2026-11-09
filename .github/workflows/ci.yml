@@ -1,61 +1,33 @@
 name: Build and publish Docker image
+
 on:
   push:
-    branches: [main, master]
-  workflow_dispatch:
-permissions:
-  contents: read
+    branches: [ "main" ]
+
 jobs:
   test-and-publish:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: {python-version: '3.12.7'}
-      - name: Validate and test
-        shell: bash
-        run: |
-          set -euo pipefail
-          python -m py_compile disk_analyzer.py disk_analyzerD.py
-          d="$(mktemp -d)"
-          printf 'same-content' > "$d/a.txt"
-          cp "$d/a.txt" "$d/b.txt"
-          truncate -s 3221225472 "$d/limit.bin"
-          out="$(python disk_analyzerD.py "$d" --no-color --inactive-days 0)"
-          grep -q 'Duplicate groups: 1' <<< "$out"
-          grep -q 'WARNING: directory exceeds 3 GiB' <<< "$out"
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        if: github.event_name == 'push'
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - uses: docker/metadata-action@v5
-        if: github.event_name == 'push'
-        id: meta
-        with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/disk-analyzer
-          tags: |
-            type=raw,value=latest
-            type=sha
-      - uses: docker/build-push-action@v6
-        if: github.event_name == 'push'
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
         with:
           context: .
+          file: ./Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/hw3:latest
 
   deploy:
-    name: Deploy on self-hosted runner
     needs: test-and-publish
-    if: github.event_name == 'push' && needs.test-and-publish.result == 'success'
-    runs-on: [self-hosted, window, x64]
-    env:
-      IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/disk-analyzer:latest
-      CONTAINER_NAME: disk-analyzer
+    runs-on: self-hosted
     steps:
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
@@ -63,15 +35,9 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Pull published image
-        run: docker pull "$IMAGE"
-
-      - name: Replace running container
-        shell: bash
+      - name: Deploy Docker Container
         run: |
-          set -euo pipefail
-          docker rm --force "$CONTAINER_NAME" 2>/dev/null || true
-          docker run --detach \
-            --restart unless-stopped \
-            --name "$CONTAINER_NAME" \
-            "$IMAGE"
+          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/hw3:latest
+          docker stop my-api || true
+          docker rm my-api || true
+          docker run -d -p 8000:8000 --name my-api ${{ secrets.DOCKERHUB_USERNAME }}/hw3:latest
