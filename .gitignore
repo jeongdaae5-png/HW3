@@ -35,3 +35,13 @@ Thumbs.db
 # Images and other local test artifacts
 test-images/
 tests/fixtures/
+
+# GitHub Actions self-hosted runner and temporary deployment files
+actions-runner/
+_work/
+runner-temp/
+runner-diagnostics/
+*.runner
+*.pid
+tmp/
+temp/
