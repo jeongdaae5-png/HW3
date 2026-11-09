@@ -52,7 +52,7 @@ jobs:
     name: Deploy on self-hosted runner
     needs: test-and-publish
     if: github.event_name == 'push' && needs.test-and-publish.result == 'success'
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, window, x64]
     env:
       IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/disk-analyzer:latest
       CONTAINER_NAME: disk-analyzer
