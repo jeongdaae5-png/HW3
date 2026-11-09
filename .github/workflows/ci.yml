@@ -29,10 +29,16 @@ jobs:
     needs: test-and-publish
     runs-on: self-hosted
     steps:
-      - name: Deploy Docker Container
-        shell: powershell
-        run: |
-          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/hw3:latest
-          docker stop my-api -ErrorAction SilentlyContinue
-          docker rm my-api -ErrorAction SilentlyContinue
-          docker run -d -p 8000:8000 --name my-api ${{ secrets.DOCKERHUB_USERNAME }}/hw3:latest
+      - name: Pull Docker Image
+        run: docker pull ${{ secrets.DOCKERHUB_USERNAME }}/hw3:latest
+
+      - name: Stop Existing Container
+        continue-on-error: true
+        run: docker stop my-api
+
+      - name: Remove Existing Container
+        continue-on-error: true
+        run: docker rm my-api
+
+      - name: Run New Container
+        run: docker run -d -p 8000:8000 --name my-api ${{ secrets.DOCKERHUB_USERNAME }}/hw3:latest
